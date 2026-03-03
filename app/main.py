@@ -3,6 +3,7 @@
 import uvicorn
 
 from fastapi import FastAPI
+from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.accessors.entity_mongo_accessor import EntityMongoAccessor
 from app.routes.entity_route import EntityRoute
@@ -14,6 +15,9 @@ from app.services.planet_service import PlanetService
 # FastAPI instance
 app = FastAPI(title="Planet API", version="1.0")
 
+client = AsyncIOMotorClient("mongodb://localhost:27017")
+db = client["universe"]
+
 # Initialize Accessor and Service
 mongo_accessor = PlanetMongoAccessor(
     connection_string="mongodb://localhost:27017",
@@ -22,11 +26,8 @@ mongo_accessor = PlanetMongoAccessor(
 planet_service = PlanetService(mongo_accessor)
 planet_route = PlanetRoute(planet_service)
 
-entity_accessor = EntityMongoAccessor(
-    connection_string="mongodb://localhost:27017",
-    database_name="universe"
-)
-entity_service = EntityService(entity_accessor)
+entity_accessor = EntityMongoAccessor(db)
+entity_service = EntityService(entity_accessor, "/tmp/entity.sock")
 entity_route = EntityRoute(entity_service)
 
 

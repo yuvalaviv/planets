@@ -1,7 +1,8 @@
 # app/routes/entity_route.py
 from fastapi import APIRouter
 from typing import List
-from app.models.entity import Entity
+
+from app.schema.entity_schema import EntityResponse
 from app.services.entity_service import EntityService
 
 
@@ -12,8 +13,8 @@ class EntityRoute:
         self._setup_routes()
 
     def _setup_routes(self):
-        self.router.add_api_route("/", self.get_all_entities, methods=["GET"], response_model=List[Entity])
-        self.router.add_api_route("/{entity_id}", self.get_entity_by_id, methods=["GET"], response_model=Entity)
+        self.router.add_api_route("/", self.get_all_entities, methods=["GET"], response_model=List[EntityResponse])
+        self.router.add_api_route("/{entity_id}", self.get_entity_by_id, methods=["GET"], response_model=EntityResponse)
         self.router.add_api_route("/", self.create_entity, methods=["POST"])
         self.router.add_api_route("/{entity_id}", self.delete_entity, methods=["DELETE"])
 
@@ -26,7 +27,7 @@ class EntityRoute:
             return entity
         return {"error": "Entity not found"}
 
-    async def create_entity(self, entity: Entity):
+    async def create_entity(self, entity: EntityResponse):
         await self.service.create_entity(entity)
         return {"status": "created"}
 
