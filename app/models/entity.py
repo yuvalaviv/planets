@@ -3,7 +3,7 @@ from datetime import datetime
 
 
 class EntityModel(BaseModel):
-    ID: str
+    _id: str
     planet_id: str
     created_at: datetime | None = None
     type: str

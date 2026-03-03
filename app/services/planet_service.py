@@ -1,4 +1,4 @@
-from models.planet import Planet
+from app.models.planet import PlanetModel
 
 class PlanetService:
     def __init__(self, accessor):
@@ -7,7 +7,7 @@ class PlanetService:
     async def get_all_planets(self):
         return await self.accessor.get_all()
 
-    async def create_planet(self, planet_model: Planet):
+    async def create_planet(self, planet_model: PlanetModel):
         await self.accessor.create(planet_model)
 
     async def get_planet_by_id(self, planet_id: str):
@@ -15,4 +15,3 @@ class PlanetService:
     
     async def delete_planet(self, planet_id: str):
         await self.accessor.delete(planet_id)
-        
