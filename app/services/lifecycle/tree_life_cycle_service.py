@@ -1,18 +1,18 @@
 import asyncio
 
 from app.accessors.entity_mongo_accessor import EntityMongoAccessor
-from app.models.animal import Animal
-from app.services.lifecycle.animal_config import AnimalConfig
+from app.models.tree import Tree
+from app.services.lifecycle.tree_config import TreeConfig
 
 
-class AnimalLifecycleService:
+class TreeLifecycleService:
     """
     This service is responsible for managing the full asynchronous lifecycle of Animal entities.
     """
     def __init__(
         self,
         accessor: EntityMongoAccessor,
-        config: AnimalConfig
+        config: TreeConfig
     ):
         """
         Initialize the service with required dependencies
@@ -25,26 +25,21 @@ class AnimalLifecycleService:
         self.config = config
         self._tasks: dict[str, asyncio.Task] = {}
 
-    async def run(self, animal: Animal):
+    async def run(self, tree: Tree):
         """
         Run aging, hunger, and persistence tasks concurrently.
 
         Args:
-            animal: Animal domain entity
+            tree: Tree domain entity
         """
         try:
             while True:
-                animal.grow(self.config.age_increment)
-                animal.increase_hunger(
-                    self.config.hunger_increment,
-                    self.config.max_hunger
-                )
+                tree.grow(self.config.height_increment)
 
                 await self.accessor.update_fields(
-                    animal.ID,
+                    tree.ID,
                     {
-                        "age": animal.age,
-                        "hungry": animal.hungry,
+                        "height": tree.height
                     }
                 )
                 await asyncio.sleep(self.config.interval)

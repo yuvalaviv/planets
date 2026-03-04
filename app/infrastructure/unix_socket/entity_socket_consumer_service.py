@@ -90,4 +90,4 @@ class EntitySocketConsumerService:
         lifecycle_service = AnimalLifecycleService(self.entity_accessor, animal_config)
 
         # Start lifecycle for one animal
-        asyncio.create_task(lifecycle_service.supervise(entity_instance))
+        asyncio.create_task(lifecycle_service.run(entity_instance))
