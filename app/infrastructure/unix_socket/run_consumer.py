@@ -23,6 +23,8 @@ from app.accessors.entity_mongo_accessor import EntityMongoAccessor
 from app.infrastructure.unix_socket.entity_socket_consumer_service import EntitySocketConsumerService
 from app.infrastructure.unix_socket.server import UnixSocketServer
 from app.config import settings
+from app.services.lifecycle.animal_config import AnimalConfig
+from app.services.lifecycle.animal_life_cycle_service import AnimalLifecycleService
 
 
 async def main():
@@ -55,6 +57,7 @@ async def main():
         port=settings.SOCKET_PORT,
         message_handler=consumer_service.handle_message
     )
+
     await server.start()
 
 if __name__ == "__main__":

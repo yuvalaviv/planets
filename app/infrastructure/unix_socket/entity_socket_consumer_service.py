@@ -5,6 +5,8 @@ from app.accessors.entity_mongo_accessor import EntityMongoAccessor
 from app.config import settings
 from app.models.tree import Tree
 from app.models.animal import Animal
+from app.services.lifecycle.animal_config import AnimalConfig
+from app.services.lifecycle.animal_life_cycle_service import AnimalLifecycleService
 
 
 class EntitySocketConsumerService:
@@ -78,5 +80,14 @@ class EntitySocketConsumerService:
 
         entity_instance = entity_class(**entity_data)
 
-        # Run entity-specific async processing in background
-        asyncio.create_task(entity_instance.process(self.entity_accessor, settings.INTERVAL_SECONDS))
+        animal_config = AnimalConfig(
+            age_increment=settings.GETTING_OLD,
+            hunger_increment=settings.GETTING_HUNGRY,
+            max_hunger=settings.MAX_HUNGRY,
+            interval=settings.ENTITY_INTERVAL_SECONDS
+        )
+
+        lifecycle_service = AnimalLifecycleService(self.entity_accessor, animal_config)
+
+        # Start lifecycle for one animal
+        asyncio.create_task(lifecycle_service.supervise(entity_instance))
