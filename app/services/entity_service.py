@@ -5,6 +5,7 @@ from app.infrastructure.unix_socket.client import UnixSocketClient
 from app.models.base_entity import EntityBase
 from typing import List, Optional
 from pydantic import parse_obj_as
+from app.config import settings
 
 from app.schema.entity_schema import EntityResponse
 
@@ -45,12 +46,12 @@ class EntityService:
 
         for raw_dict in raw_list:
             raw_dict["ID"] = raw_dict.pop("_id", None)
-            entity = parse_obj_as(EntityBase, raw_dict)
+            entity = parse_obj_as(EntityResponse, raw_dict)
             entities.append(entity)
 
         return entities
 
-    async def get_entity_by_id(self, entity_id: str) -> Optional[EntityBase]:
+    async def get_entity_by_id(self, entity_id: str):
         """
         Retrieve a single entity by its unique identifier.
 
@@ -61,6 +62,8 @@ class EntityService:
             The EntityBase instance if found, otherwise None.
         """
         raw_dict = await self.accessor.get_by_id(entity_id)
+        if raw_dict is None:
+            return None
 
         # MongoDB _id -> Pydantic ID
         raw_dict["ID"] = raw_dict.pop("_id", None)
@@ -76,18 +79,19 @@ class EntityService:
         Args:
             entity: The entity instance to be created.
 
-        Side Effects:
-            - Inserts a document into MongoDB.
-            - Sends an event message to the socket server.
+        Returns:
+            True if the entity was created, False otherwise.
         """
-        # 1. Save to DB
+        entity_dict = entity.model_dump()
+
         try:
             await self.accessor.create(entity)
         except DuplicateKeyError as e:
-            print("Failed to create entity in DB:", e)
+            raise Exception(settings.INSERT_EVENT_FAILED % e)
 
-        # 2. Send event to socket server
         await self.send_to_socket(entity)
+        entity_dict["ID"] = entity.ID
+        return parse_obj_as(EntityResponse, entity_dict)
 
     async def send_to_socket(self, entity):
         """
@@ -96,11 +100,15 @@ class EntityService:
 
         Args:
             entity: The entity instance to be created.
+
+        Returns:
+            True if the entity was sent to socket, False otherwise.
         """
         try:
-            await self.socket_client.send(entity.ID)
+            await self.socket_client.send({"id": entity.ID, "type": entity.type})
+            return True
         except Exception as e:
-            print("Failed to send entity_created event:", e)
+            raise Exception(settings.SEND_EVENT_FAILED % e)
 
     async def delete_entity(self, entity_id: str) -> bool:
         """

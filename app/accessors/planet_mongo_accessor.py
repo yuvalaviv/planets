@@ -40,7 +40,7 @@ class PlanetMongoAccessor:
             return str(result.inserted_id)
 
         except DuplicateKeyError:
-            raise ValueError("Planet with id %s already exists" % planet.ID)
+            raise ValueError(settings.DUPLICATE_PLANET_ERROR % planet.ID)
 
     async def get_by_id(self, planet_id: str) -> Optional[BaseModel]:
         """

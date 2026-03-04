@@ -1,48 +1,82 @@
-# app/processing/entity_socket_consumer_service.py
 import asyncio
-from typing import Dict, Type
+from typing import Dict, Type, Any
 
 from app.accessors.entity_mongo_accessor import EntityMongoAccessor
+from app.config import settings
 from app.models.tree import Tree
 from app.models.animal import Animal
 
 
 class EntitySocketConsumerService:
+    """
+    Service responsible for handling messages received from the Unix socket server.
+
+    This service acts as a consumer for asynchronous events (e.g., entity lifecycle events).
+    Based on the entity type, it dynamically instantiates the correct domain model
+    and triggers its processing logic.
+
+    Responsibilities:
+        - Fetch entity data from persistence layer.
+        - Resolve the correct domain model using a registry.
+        - Execute entity-specific async processing logic.
+    """
+
     def __init__(self, entity_accessor: EntityMongoAccessor):
+        """
+        Initialize the consumer service.
+
+        Args:
+            entity_accessor (EntityMongoAccessor):
+                Data access layer used to retrieve and update entity data.
+        """
         self.entity_accessor = entity_accessor
 
-        # Registry of entity types → domain classes
-        self.entity_registry: Dict[str, Type] = {
+        self.entity_registry: Dict[str, Type[Any]] = {
             "Tree": Tree,
             "Animal": Animal,
         }
 
-        # Keep track of running tasks to avoid duplicates
-        self.running_tasks: Dict[str, asyncio.Task] = {}
-
-    async def handle_message(self, message: dict) -> dict:
+    async def handle_message(self, message: dict) -> None:
         """
-        Handles incoming messages from UnixSocketServer
-        """
-        event = message.get("event")
-        if event != "entity_created":
-            return {"status": "ignored"}
+        Handle an incoming socket message.
 
-        entity_id = message.get("entity_id")
+        Expected message format:
+            {
+                "id": "<entity_id>",
+                "type": "<entity_type>"
+            }
+
+        Workflow:
+            1. Retrieve entity data from database.
+            2. Determine correct entity class from registry.
+            3. Instantiate domain object.
+            4. Trigger async processing logic in background.
+
+        Args:
+            message (dict):
+                Incoming message containing entity identification data.
+
+        Raises:
+            ValueError:
+                If entity type is unsupported or entity not found.
+        """
+        entity_id = message.get("id")
+        entity_type = message.get("type")
+
+        if not entity_id or not entity_type:
+            raise ValueError("Message must contain 'id' and 'type' fields.")
+
         entity_data = await self.entity_accessor.get_by_id(entity_id)
-        print(entity_data)
+
         if not entity_data:
-            return {"status": "entity_not_found"}
+            raise ValueError(f"Entity with ID {entity_id} not found.")
 
-        animal = Animal(**entity_data)
-        print(self.entity_accessor)
-        asyncio.create_task(animal.process(self.entity_accessor))  # start all tasks concurrently
+        entity_class = self.entity_registry.get(entity_type)
 
-    async def start_entity_process(self, entity):
-        """
-        Run the entity's async process method
-        """
-        if hasattr(entity, "process"):
-            await entity.process()
-        else:
-            print(f"No process method defined for {entity.type}")
+        if not entity_class:
+            raise ValueError(f"Unsupported entity type: {entity_type}")
+
+        entity_instance = entity_class(**entity_data)
+
+        # Run entity-specific async processing in background
+        asyncio.create_task(entity_instance.process(self.entity_accessor, settings.INTERVAL_SECONDS))

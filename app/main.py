@@ -12,13 +12,14 @@ from app.routes.planet_route import PlanetRoute
 from app.accessors.planet_mongo_accessor import PlanetMongoAccessor
 from app.services.entity_service import EntityService
 from app.services.planet_service import PlanetService
+from app.config import settings
 
 # FastAPI instance
 app = FastAPI(title="Planet API", version="1.0")
 
 client = AsyncIOMotorClient("mongodb://localhost:27017")
 db = client["universe"]
-socket_client = UnixSocketClient("/tmp/entity.sock")
+socket_client = UnixSocketClient(settings.SOCKET_HOSTNAME, settings.SOCKET_PORT)
 
 # Initialize Accessor and Service
 mongo_accessor = PlanetMongoAccessor(db)

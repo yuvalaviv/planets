@@ -3,10 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel
 from app.config import settings
 from pymongo.errors import DuplicateKeyError
-
-from app.models.animal import Animal
-from app.models.base_entity import EntityBase
-from app.schema.entity_schema import EntityResponse
+from app.config import settings
 
 
 class EntityMongoAccessor:
@@ -44,7 +41,7 @@ class EntityMongoAccessor:
             return str(result.inserted_id)
 
         except DuplicateKeyError:
-            raise ValueError("Entity with id %s already exists" % entity.ID)
+            raise ValueError(settings.DUPLICATE_ENTITY_ERROR % entity.ID)
 
     async def get_by_id(self, entity_id: str) -> Optional[BaseModel]:
         """

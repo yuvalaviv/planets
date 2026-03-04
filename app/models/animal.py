@@ -1,49 +1,136 @@
 import asyncio
 import random
 from typing import Literal
-from datetime import datetime
 from .base_entity import EntityBase
+from app.config import settings
 
 
 class Animal(EntityBase):
+    """
+    Domain model representing an Animal entity.
+
+    This model extends EntityBase and defines animal-specific
+    attributes and behavior such as aging, hunger progression,
+    reproduction checks, and periodic state persistence.
+
+    The `type` field is used as a discriminator for Pydantic
+    polymorphic validation.
+    """
+
     type: Literal["Animal"]
     age: float = 0
     breeding_chance: int = 0
     hungry: int = 0
-    _persist_interval: int = 10  # seconds between DB updates
 
     async def getting_old(self):
-        """Increase age and possibly trigger reproduction"""
-        while True:
-            self.age += 0.1
-            if random.randint(0, 100) <= self.breeding_chance:
-                print(f"Animal {self.ID} reproduced!")
-            print(f"Animal {self.ID} age: {self.age:.1f}")
-            await asyncio.sleep(3)
+        """
+        Continuously increase the animal's age.
+
+        On each iteration:
+            - Increase age by configured increment.
+            - Randomly check if reproduction occurs.
+            - Log the updated age.
+            - Sleep for configured interval.
+
+        This coroutine runs indefinitely until cancelled.
+        """
+        try:
+            while True:
+                self.age += settings.GETTING_OLD
+
+                if random.random() <= self.breeding_chancec/ settings.CHECK_REPRODUCTION:
+                    print(settings.REPRODUCTION_MESSAGE % self.ID)
+
+                print(settings.AGE_MESSAGE % (self.ID, str(self.age)))
+
+                await asyncio.sleep(settings.ENTITY_INTERVAL_SECONDS)
+        except asyncio.CancelledError or KeyboardInterrupt:
+            print(settings.CANCEL)
 
     async def getting_hungry(self):
-        """Increase hunger over time"""
-        while True:
-            self.hungry += 1
-            print(f"Animal {self.ID} hunger: {self.hungry}")
-            await asyncio.sleep(5)
+        """
+        Continuously increase the animal's hunger level.
 
-    async def persist_state(self, accessor):
-        """Persist the current state to MongoDB every _persist_interval seconds"""
-        while True:
-            print("a")
-            await accessor.update_fields(self.ID, {
-                "age": self.age,
-            })
-            print(f"[DB] Animal {self.ID} persisted: age={self.age:.1f}, hungry={self.hungry}")
-            await asyncio.sleep(self._persist_interval)
+        On each iteration:
+            - Increase hunger up to MAX_HUNGRY.
+            - Log the updated hunger value.
+            - Sleep for configured interval.
 
-    async def process(self, accessor):
-        """Run all tasks concurrently"""
-        # Schedule tasks concurrently
+        This coroutine runs indefinitely until cancelled.
+        """
+        try:
+            while True:
+                if self.hungry < settings.MAX_HUNGRY:
+                    self.hungry += settings.GETTING_HUNGRY
+
+                print(settings.HUNGER_MESSAGE % (self.ID, self.hungry))
+
+                await asyncio.sleep(settings.ENTITY_INTERVAL_SECONDS)
+
+        except asyncio.CancelledError or KeyboardInterrupt:
+            print(settings.CANCEL)
+
+    async def persist_state(self, accessor, interval_seconds: int):
+        """
+        Persist the current in-memory state of the animal to the database.
+
+        Args:
+            accessor:
+                Data access layer responsible for updating the entity.
+            interval_seconds (int):
+                Time interval between persistence operations.
+
+        On each iteration:
+            - Update age and hunger fields in MongoDB.
+            - Log persistence event.
+            - Sleep for the specified interval.
+
+        This coroutine runs indefinitely until cancelled.
+        """
+        try:
+            while True:
+                await accessor.update_fields(
+                    self.ID,
+                    {
+                        "age": self.age,
+                        "hungry": self.hungry
+                    }
+                )
+
+                print(settings.WRITE_TO_DB_MESSAGE % (self.ID, self.age, self.hungry))
+
+                await asyncio.sleep(interval_seconds)
+
+        except asyncio.CancelledError or KeyboardInterrupt:
+            print(settings.CANCEL)
+
+        except Exception as e:
+            print(settings.ERROR % e)
+
+    async def process(self, accessor, interval_seconds: int):
+        """
+        Start the full lifecycle processing for the animal.
+
+        This method runs:
+            - Aging process
+            - Hunger progression
+            - Periodic state persistence
+
+        All tasks are executed concurrently using asyncio.
+
+        Args:
+            accessor:
+                Data access layer used for persistence.
+            interval_seconds (int):
+                Interval for database persistence.
+
+        This method blocks until all tasks are cancelled
+        or an unhandled exception occurs.
+        """
         task_old = asyncio.create_task(self.getting_old())
         task_hungry = asyncio.create_task(self.getting_hungry())
-        task_persist = asyncio.create_task(self.persist_state(accessor))
+        task_persist = asyncio.create_task(
+            self.persist_state(accessor, interval_seconds)
+        )
 
-        # Await them all (they run indefinitely)
-        await asyncio.gather(*self._tasks)
+        await asyncio.gather(task_persist, task_old, task_hungry, return_exceptions=False)
