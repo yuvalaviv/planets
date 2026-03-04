@@ -1,34 +1,90 @@
-# app/accessors/entity_accessor.py
 from typing import List, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel
+from app.config import settings
 
 
 class EntityMongoAccessor:
+    """
+    Data access layer for Entity documents stored in MongoDB.
+
+    This class encapsulates all CRUD operations related to entities
+    and provides an asynchronous interface using Motor.
+
+    Attributes:
+        collection: MongoDB collection instance used for entity storage.
+    """
     def __init__(self, db: AsyncIOMotorDatabase):
-        self.collection = db["entities"]
+        """
+        Initialize the accessor with a MongoDB database instance.
+
+        Args:
+            db: AsyncIOMotorDatabase instance connected to MongoDB.
+        """
+        self.collection = db[settings.ENTITIES_DB]
 
     async def create(self, entity: BaseModel) -> str:
         """
-        entity: Pydantic model (Tree or Animal)
+        Insert a new entity document into MongoDB.
+
+        Args:
+            entity: Pydantic model representing the entity.
+
+        Returns:
+            The inserted entity ID as a string.
         """
         doc = entity.dict(by_alias=True)
         result = await self.collection.insert_one(doc)
         return str(result.inserted_id)
 
     async def get_by_id(self, entity_id: str) -> Optional[dict]:
+        """
+        Retrieve an entity document by its ID.
+
+        Args:
+            entity_id: The unique identifier of the entity.
+
+        Returns:
+            The entity document as a dictionary if found,
+            otherwise None.
+        """
         doc = await self.collection.find_one({"_id": entity_id})
         return doc
 
     async def get_all(self) -> List[dict]:
+        """
+        Retrieve all entity documents from the collection.
+
+        Returns:
+            A list of entity documents as dictionaries.
+        """
         cursor = self.collection.find({})
         return [doc async for doc in cursor]
 
     async def delete(self, entity_id: str) -> bool:
+        """
+        Delete an entity by its ID.
+
+        Args:
+            entity_id: The unique identifier of the entity.
+
+        Returns:
+            True if the entity was deleted, False otherwise.
+        """
         result = await self.collection.delete_one({"_id": entity_id})
         return result.deleted_count > 0
 
     async def update_fields(self, entity_id: str, fields: dict):
+        """
+        Update specific fields of an entity document.
+
+        Args:
+            entity_id: The unique identifier of the entity.
+            fields: Dictionary of fields to update.
+
+        Returns:
+            None
+        """
         await self.collection.update_one(
             {"_id": entity_id},
             {"$set": fields}
