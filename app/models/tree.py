@@ -4,6 +4,9 @@ from .base_entity import EntityBase
 
 
 class Tree(EntityBase):
+    """
+    Domain model representing a Tree entity.
+    """
     type: Literal["Tree"]
     height: int = 0
 

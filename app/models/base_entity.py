@@ -4,6 +4,9 @@ from datetime import datetime
 
 
 class EntityBase(BaseModel):
+    """
+    Domain model representing an entity.
+    """
     ID: str = Field(alias="_id")
     planet_id: str
     created_at: datetime
