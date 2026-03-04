@@ -19,10 +19,7 @@ client = AsyncIOMotorClient("mongodb://localhost:27017")
 db = client["universe"]
 
 # Initialize Accessor and Service
-mongo_accessor = PlanetMongoAccessor(
-    connection_string="mongodb://localhost:27017",
-    database_name="universe"
-)
+mongo_accessor = PlanetMongoAccessor(db)
 planet_service = PlanetService(mongo_accessor)
 planet_route = PlanetRoute(planet_service)
 

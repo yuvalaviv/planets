@@ -1,5 +1,6 @@
 from app.models.planet import PlanetModel
 
+
 class PlanetService:
     def __init__(self, accessor):
         self.accessor = accessor

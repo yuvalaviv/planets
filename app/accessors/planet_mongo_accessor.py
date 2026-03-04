@@ -1,30 +1,80 @@
-from motor.motor_asyncio import AsyncIOMotorClient
 from typing import List, Optional
-from datetime import datetime
-from app.models.planet import PlanetModel
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel
+from app.config import settings
+from pymongo.errors import DuplicateKeyError
 
 
 class PlanetMongoAccessor:
-    def __init__(self, connection_string: str, database_name: str):
-        self.client = AsyncIOMotorClient(connection_string)
-        self.db = self.client[database_name]
-        self.collection = self.db["planets"]
+    """
+    Data access layer for Planet documents stored in MongoDB.
 
-    async def get_all(self) -> List[PlanetModel]:
+    This class encapsulates all CRUD operations related to planets
+    and provides an asynchronous interface using Motor.
+
+    Attributes:
+        collection: MongoDB collection instance used for planet storage.
+    """
+    def __init__(self, db: AsyncIOMotorDatabase):
+        """
+        Initialize the accessor with a MongoDB database instance.
+
+        Args:
+            db: AsyncIOMotorDatabase instance connected to MongoDB.
+        """
+        self.collection = db[settings.PLANETS_DB]
+
+    async def create(self, planet: BaseModel) -> str:
+        """
+        Insert a new planet document into MongoDB.
+
+        Args:
+            planet: Pydantic model representing the planet.
+
+        Returns:
+            The inserted planet ID as a string.
+        """
+        try:
+            doc = planet.model_dump(by_alias=True)
+            result = await self.collection.insert_one(doc)
+            return str(result.inserted_id)
+
+        except DuplicateKeyError:
+            raise ValueError("Planet with id %s already exists" % planet.ID)
+
+    async def get_by_id(self, planet_id: str) -> Optional[BaseModel]:
+        """
+        Retrieve a planet document by its ID.
+
+        Args:
+            planet_id: The unique identifier of the planet.
+
+        Returns:
+            The planet document as a dictionary if found,
+            otherwise None.
+        """
+        doc = await self.collection.find_one({"_id": planet_id})
+        return doc
+
+    async def get_all(self) -> List[dict]:
+        """
+        Retrieve all planet documents from the collection.
+
+        Returns:
+            A list of planet documents as dictionaries.
+        """
         cursor = self.collection.find({})
-        planets = []
-        async for doc in cursor:
-            planets.append(PlanetModel(**doc))
-        return planets
+        return [doc async for doc in cursor]
 
-    async def get_by_id(self, id: str) -> Optional[PlanetModel]:
-        doc = await self.collection.find_one({"_id": id})
-        if doc:
-            return PlanetModel(**doc)
-        return None
+    async def delete(self, planet_id: str) -> bool:
+        """
+        Delete an planet by its ID.
 
-    async def create(self, planet: PlanetModel):
-        await self.collection.insert_one(planet.dict(by_alias=True))
+        Args:
+            planet_id: The unique identifier of the planet.
 
-    async def delete(self, id: str):
-        await self.collection.delete_one({"_id": id})
+        Returns:
+            True if the planet was deleted, False otherwise.
+        """
+        result = await self.collection.delete_one({"_id": planet_id})
+        return result.deleted_count > 0
