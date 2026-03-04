@@ -1,7 +1,8 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel
 from app.config import settings
+from pymongo.errors import DuplicateKeyError
 
 
 class EntityMongoAccessor:
@@ -33,11 +34,15 @@ class EntityMongoAccessor:
         Returns:
             The inserted entity ID as a string.
         """
-        doc = entity.dict(by_alias=True)
-        result = await self.collection.insert_one(doc)
-        return str(result.inserted_id)
+        try:
+            doc = entity.model_dump(by_alias=True)
+            result = await self.collection.insert_one(doc)
+            return str(result.inserted_id)
 
-    async def get_by_id(self, entity_id: str) -> Optional[dict]:
+        except DuplicateKeyError:
+            raise ValueError("Entity with id %s already exists" % entity.ID)
+
+    async def get_by_id(self, entity_id: str) -> Optional[BaseModel]:
         """
         Retrieve an entity document by its ID.
 
@@ -74,7 +79,7 @@ class EntityMongoAccessor:
         result = await self.collection.delete_one({"_id": entity_id})
         return result.deleted_count > 0
 
-    async def update_fields(self, entity_id: str, fields: dict):
+    async def update_fields(self, entity_id: str, fields: Dict[str, Any]) -> bool:
         """
         Update specific fields of an entity document.
 
@@ -83,9 +88,10 @@ class EntityMongoAccessor:
             fields: Dictionary of fields to update.
 
         Returns:
-            None
+            True if the entity was updated, False otherwise.
         """
-        await self.collection.update_one(
+        result = await self.collection.update_one(
             {"_id": entity_id},
             {"$set": fields}
         )
+        return result.modified_count > 0
