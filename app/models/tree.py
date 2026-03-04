@@ -3,9 +3,10 @@ from typing import Literal
 from .base_entity import EntityBase
 import asyncio
 
+
 class Tree(EntityBase):
     type: Literal["Tree"]
-    hight: int
+    height: int = 0
 
     async def process(self):
         while True:

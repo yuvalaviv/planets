@@ -7,8 +7,8 @@ from .base_entity import EntityBase
 
 class Animal(EntityBase):
     type: Literal["Animal"]
-    age: float
-    breeding_chance: int
+    age: float = 0
+    breeding_chance: int = 0
     hungry: int = 0
     _persist_interval: int = 10  # seconds between DB updates
 

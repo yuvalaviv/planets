@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.accessors.entity_mongo_accessor import EntityMongoAccessor
+from app.infrastructure.unix_socket.client import UnixSocketClient
 from app.routes.entity_route import EntityRoute
 from app.routes.planet_route import PlanetRoute
 from app.accessors.planet_mongo_accessor import PlanetMongoAccessor
@@ -17,6 +18,7 @@ app = FastAPI(title="Planet API", version="1.0")
 
 client = AsyncIOMotorClient("mongodb://localhost:27017")
 db = client["universe"]
+socket_client = UnixSocketClient("/tmp/entity.sock")
 
 # Initialize Accessor and Service
 mongo_accessor = PlanetMongoAccessor(db)
@@ -24,7 +26,7 @@ planet_service = PlanetService(mongo_accessor)
 planet_route = PlanetRoute(planet_service)
 
 entity_accessor = EntityMongoAccessor(db)
-entity_service = EntityService(entity_accessor, "/tmp/entity.sock")
+entity_service = EntityService(entity_accessor, socket_client)
 entity_route = EntityRoute(entity_service)
 
 

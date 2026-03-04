@@ -2,6 +2,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 
+
 class EntityBase(BaseModel):
     ID: str = Field(alias="_id")
     planet_id: str

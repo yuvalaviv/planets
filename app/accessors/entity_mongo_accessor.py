@@ -4,6 +4,10 @@ from pydantic import BaseModel
 from app.config import settings
 from pymongo.errors import DuplicateKeyError
 
+from app.models.animal import Animal
+from app.models.base_entity import EntityBase
+from app.schema.entity_schema import EntityResponse
+
 
 class EntityMongoAccessor:
     """
@@ -53,8 +57,7 @@ class EntityMongoAccessor:
             The entity document as a dictionary if found,
             otherwise None.
         """
-        doc = await self.collection.find_one({"_id": entity_id})
-        return doc
+        return await self.collection.find_one({"_id": entity_id})
 
     async def get_all(self) -> List[dict]:
         """
